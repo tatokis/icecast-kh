@@ -571,6 +571,9 @@ void *xslt_update (void *arg)
     thread_mutex_lock (&update_lock);
     for (client_t *client = xsl_clients; client; client = xsl_clients)
     {
+        // HACK: fserve_setup_client() -> fserve_setup_client_fb() NULLs client->mount
+        // so preserve it in another variable...
+        char* mount_heap = (char*)client->mount;
         xsl_clients = client->next_on_worker;
         xsl_count--;
         thread_mutex_unlock (&update_lock);
@@ -590,6 +593,7 @@ void *xslt_update (void *arg)
 
         if (x->client)
             client_send_404 (client, "Could not provide XSLT file");
+        free (mount_heap);
         xsl_req_clear (x);
         thread_mutex_lock (&update_lock);
     }
@@ -625,6 +629,10 @@ int xslt_client (client_t *client)
             {       // cache slot marked and queue not too bad
                 client->next_on_worker = xsl_clients;
                 client->worker = NULL;
+                // Awful hack because we can't ensure that mount will not be freed()
+                // (see connection.c:1898-1900 (_handle_get_request()) when handling /whatever.xspf
+                if (client->mount)
+                    client->mount = strdup (client->mount);
                 xsl_clients = client;
                 xsl_count++;
                 if (xsl_threads < 5)
