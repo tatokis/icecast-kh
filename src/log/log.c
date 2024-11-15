@@ -300,6 +300,7 @@ static void log_init (log_t *log)
     log->filename = NULL;
     log->logfile = NULL;
     log->buffer = NULL;
+    log->mutex = NULL;
 }
 
 
@@ -712,8 +713,10 @@ static void _log_close_internal (int log_id)
     free (loglist [log_id].priorities);
     loglist [log_id].priorities = NULL;
     loglist [log_id].checked_entry = NULL;
-    _unlock_q (log_id);
-    if (_locks.mxc) _locks.mxc (&loglist [log_id].mutex, __FILE__, __LINE__, 0);
+    if (loglist [log_id].mutex) {
+        _unlock_q (log_id);
+        if (_locks.mxc) _locks.mxc (&loglist [log_id].mutex, __FILE__, __LINE__, 0);
+    }
     loglist [log_id].in_use = 0;
 }
 
